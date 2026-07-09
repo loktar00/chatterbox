@@ -60,6 +60,64 @@ pip install -e .
 ```
 We developed and tested Chatterbox on Python 3.11 on Debian 11 OS; the versions of the dependencies are pinned in `pyproject.toml` to ensure consistency. You can modify the code or dependencies in this installation mode.
 
+## BC-250 Vulkan Fork Quickstart
+
+This fork includes experimental AMD BC-250 Vulkan acceleration work for a
+Chatterbox-compatible HTTP API. It is a deployment-focused fork, not an
+upstream-ready PR branch. ROCm/HIP is intentionally not the supported path on
+BC-250; use the guarded Vulkan launcher below.
+
+Clone this branch:
+
+```shell
+git clone -b bc250-vulkan-accel https://github.com/loktar00/chatterbox.git
+cd chatterbox
+```
+
+The git branch intentionally does not include large generated runtime artifacts
+under `exports/` or built helper `.so` files. On a fresh clone, restore the
+artifact archive produced from a working BC-250 container:
+
+```shell
+tar -C /path/to/chatterbox --zstd -xf /path/to/chatterbox-bc250-artifacts-runtime-evidence.tar.zst
+cd /path/to/chatterbox
+./verify_bc250_safe_stack.py --require-t3-validation-artifact
+```
+
+Run the fast-fused Vulkan API on a BC-250:
+
+```shell
+PORT=8003 \
+CHATTERBOX_VK_DEVICE_SELECT=0000:01:00.0 \
+./run_api_vulkan_fast_fused_guarded.sh
+```
+
+Then connect from another machine:
+
+```shell
+curl -s http://<machine-ip>:8003/health | jq
+```
+
+Known-good 270-character test request:
+
+```shell
+curl -s -m 300 -X POST http://<machine-ip>:8003/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{"input":"This benchmark uses a longer prompt to approximate one safe chunk for the CUDA server while staying below the reported reliability limit. It should produce a longer clip and expose the throughput difference between CPU and GPU inference without sending concurrent reques","voice":"morgan","exaggeration":0.33,"cfg_weight":0.67}' \
+  -o bc250_vulkan_test.wav
+```
+
+The strict fast-fused profile requires Vulkan S3 bucket artifacts and will refuse
+CPU fallback when required artifacts are missing. Short prompts may need
+additional fused bucket artifacts before they work on this profile.
+
+Detailed BC-250 notes:
+
+- `BC250_FORK_HANDOFF.md` - runbook for pushing, restoring artifacts, and startup
+- `BC250_CURRENT_STATE.md` - current benchmark/state summary
+- `BC250_ARTIFACT_MANIFEST.md` - generated artifact inventory and bundle flow
+- `BC250_RUNTIME_MATRIX.md` - export/runtime decisions and guardrails
+
 ## Usage
 
 ##### Chatterbox-Turbo
