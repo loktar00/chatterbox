@@ -57,7 +57,17 @@ gate:
 
 It verifies syntax, ignored helper library linkage, ROCm/HIP guard scripts, safe
 CPU API health, fast-fused preflight, saved target-crossing benchmark metadata,
-and the latest T3 native fast token-buffer validation artifact.
+the compact runtime matrix, and the latest T3 native fast token-buffer
+validation artifact.
+
+For a short exportability/runtime decision summary, run:
+
+```bash
+./summarize_bc250_runtime_matrix.py --pretty
+```
+
+It writes ignored JSON/Markdown under `exports/benchmarks/` and summarizes what
+is active, experimental, rejected, or worth trying next.
 
 Use the preflight before starting a Vulkan worker:
 

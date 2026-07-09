@@ -64,6 +64,24 @@ def json_command(cmd: list[str], timeout: float = 30.0) -> dict[str, Any]:
     return result
 
 
+def load_json_file(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return {}
+
+
+def nested(data: dict[str, Any], *keys: str, default: Any = None) -> Any:
+    current: Any = data
+    for key in keys:
+        if not isinstance(current, dict):
+            return default
+        current = current.get(key)
+    return default if current is None else current
+
+
 def check(name: str, ok: bool, detail: Any, severity: str = "error") -> dict[str, Any]:
     return {"name": name, "ok": bool(ok), "severity": severity, "detail": detail}
 
@@ -118,6 +136,7 @@ def source_syntax_checks() -> list[dict[str, Any]]:
     py_files = [
         "chatterbox_status.py",
         "preflight_vulkan_worker.py",
+        "summarize_bc250_runtime_matrix.py",
         "validate_t3_native_fast_token_buffer.py",
         "t3_ggml_vulkan_runtime.py",
         "chatterbox_api.py",
@@ -140,6 +159,37 @@ def source_syntax_checks() -> list[dict[str, Any]]:
         check("python_syntax", py["returncode"] == 0, {"stderr": py["stderr"]}),
         check("shell_syntax", sh["returncode"] == 0, {"stderr": sh["stderr"]}),
     ]
+
+
+def runtime_matrix_summary_check() -> dict[str, Any]:
+    output = Path("/tmp/chatterbox_bc250_runtime_matrix_verify.json")
+    result = run(
+        [
+            "./summarize_bc250_runtime_matrix.py",
+            "--output",
+            output.as_posix(),
+        ],
+        timeout=15.0,
+    )
+    data = load_json_file(output)
+    ok = (
+        result["returncode"] == 0
+        and bool(data)
+        and nested(data, "safe_runtime", "cpu_health_ok") is True
+        and isinstance(nested(data, "performance", "fast_fused_seconds"), (int, float))
+        and len(data.get("components") or []) >= 8
+    )
+    return check(
+        "runtime_matrix_summary_builds",
+        ok,
+        {
+            "returncode": result["returncode"],
+            "output": output.as_posix(),
+            "component_count": len(data.get("components") or []) if data else 0,
+            "decision": data.get("decision") if data else None,
+            "stderr": result["stderr"],
+        },
+    )
 
 
 def status_checks(status: dict[str, Any]) -> list[dict[str, Any]]:
@@ -219,6 +269,7 @@ def main() -> int:
         checks.append(check("git_worktree_clean", git_status["stdout"].strip() == "", git_status["stdout"]))
 
     checks.extend(source_syntax_checks())
+    checks.append(runtime_matrix_summary_check())
     checks.extend(helper_lib_checks())
     checks.extend(rocm_guard_checks())
 
