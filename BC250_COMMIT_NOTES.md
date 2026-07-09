@@ -26,6 +26,17 @@ listen-before-default profile. It uses:
 
 ## Safe Startup
 
+If this is a fresh clone, rebuild the ignored native helper libraries first.
+This compile step does not run ROCm/HIP, load the model, or generate audio:
+
+```bash
+./build_vulkan_helpers.sh
+```
+
+The script expects a Vulkan-enabled llama.cpp build at
+`/root/llama.cpp/build-vulkan`. Override `LLAMA_CPP_DIR`, `LLAMA_CPP_BUILD`,
+`GGML_INCLUDE_DIR`, or `GGML_LIB_DIR` if your layout differs.
+
 Use the preflight before starting a Vulkan worker:
 
 ```bash
