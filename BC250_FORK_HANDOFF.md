@@ -10,6 +10,7 @@ This branch contains the BC-250 Vulkan acceleration work on top of upstream
 - Commit identity: `loktar00 <loktar69@hotmail.com>`
 - Safe API: keep the CPU API on port `8000`
 - Fast Vulkan API: use the guarded launcher only
+- Current-state audit: `BC250_CURRENT_STATE.md`
 
 Verify the current branch before pushing:
 
