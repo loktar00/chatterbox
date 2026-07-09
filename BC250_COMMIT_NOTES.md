@@ -71,6 +71,12 @@ is active, experimental, rejected, or worth trying next.
 The committed static version is `BC250_RUNTIME_MATRIX.md`.
 The committed generated-artifact inventory is `BC250_ARTIFACT_MANIFEST.md`.
 
+To preserve ignored runtime artifacts outside Git, dry-run the bundle plan:
+
+```bash
+./bundle_bc250_artifacts.py --mode runtime-evidence
+```
+
 Use the guarded launcher before starting a fast-fused Vulkan worker:
 
 ```bash

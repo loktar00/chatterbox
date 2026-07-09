@@ -42,6 +42,33 @@ The helper library outputs remain ignored by `.gitignore`.
 These are not required in a fresh fork checkout, but they are useful when
 auditing how the current decisions were reached.
 
+## Preserving Ignored Artifacts
+
+The branch can be pushed to a fork directly, but the generated runtime
+artifacts above remain ignored by Git. Before wiping this container or moving
+to a fresh checkout, dry-run the bundle plan:
+
+```bash
+./bundle_bc250_artifacts.py --mode runtime-evidence
+```
+
+That prints the required runtime paths, optional evidence paths, total size,
+and the exact archive command. To create the archive explicitly:
+
+```bash
+./bundle_bc250_artifacts.py --mode runtime-evidence --create /root/chatterbox-bc250-artifacts-runtime-evidence.tar.zst
+```
+
+To restore it into a fresh fork checkout:
+
+```bash
+tar -C /root/chatterbox --zstd -xf /root/chatterbox-bc250-artifacts-runtime-evidence.tar.zst
+./verify_bc250_safe_stack.py --require-t3-validation-artifact
+```
+
+The bundle planner is dry-run by default. It does not load Chatterbox,
+generate audio, start workers, compile exports, or probe ROCm/HIP.
+
 ## Rejected Or Caution Artifacts
 
 - ROCm/HIP environments and outputs are not part of the supported path.

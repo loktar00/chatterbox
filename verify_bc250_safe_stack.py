@@ -134,6 +134,7 @@ def rocm_guard_checks() -> list[dict[str, Any]]:
 
 def source_syntax_checks() -> list[dict[str, Any]]:
     py_files = [
+        "bundle_bc250_artifacts.py",
         "chatterbox_status.py",
         "preflight_vulkan_worker.py",
         "summarize_bc250_artifacts.py",
