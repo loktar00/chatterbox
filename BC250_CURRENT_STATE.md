@@ -75,6 +75,12 @@ Run the full non-generating gate:
 The gate also inspects live processes and fails if ROCm/HIP scripts, Vulkan
 workers, router workers, or non-`8000` Chatterbox API workers are running.
 
+Print a concise safe-state summary:
+
+```bash
+./bc250_safe_status.py
+```
+
 Dry-run ignored artifact preservation:
 
 ```bash

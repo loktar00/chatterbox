@@ -192,6 +192,7 @@ def process_safety_checks() -> list[dict[str, Any]]:
 
 def source_syntax_checks() -> list[dict[str, Any]]:
     py_files = [
+        "bc250_safe_status.py",
         "bundle_bc250_artifacts.py",
         "chatterbox_status.py",
         "preflight_vulkan_worker.py",
