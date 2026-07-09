@@ -84,7 +84,7 @@ cd /path/to/chatterbox
 ./verify_bc250_safe_stack.py --require-t3-validation-artifact
 ```
 
-Run the fast-fused Vulkan API on a BC-250:
+For the fastest confirmed BC-250 path, run the fast-fused Vulkan API:
 
 ```shell
 PORT=8003 \
@@ -98,7 +98,7 @@ Then connect from another machine:
 curl -s http://<machine-ip>:8003/health | jq
 ```
 
-Known-good 270-character test request:
+Known-good 270-character request for the fast-fused profile:
 
 ```shell
 curl -s -m 300 -X POST http://<machine-ip>:8003/audio/speech \
@@ -107,9 +107,41 @@ curl -s -m 300 -X POST http://<machine-ip>:8003/audio/speech \
   -o bc250_vulkan_test.wav
 ```
 
-The strict fast-fused profile requires Vulkan S3 bucket artifacts and will refuse
-CPU fallback when required artifacts are missing. Short prompts may need
-additional fused bucket artifacts before they work on this profile.
+The strict fast-fused profile currently has fused split8 artifacts for the
+confirmed `611/1222` S3 bucket. Short prompts can select the `605/1210` bucket
+and fail with a "Missing Vulkan S3 bucket artifacts" error. That is intentional:
+the fast-fused profile refuses CPU fallback when required Vulkan artifacts are
+missing.
+
+For arbitrary prompt lengths, short prompts, or per-request voice samples, start
+the more general non-fused Vulkan profile instead:
+
+```shell
+PORT=8003 \
+CHATTERBOX_VK_DEVICE_SELECT=0000:01:00.0 \
+./run_api_vulkan_hybrid.sh
+```
+
+This profile is slower than fast-fused but is better for compatibility testing.
+It uses the broader S3 bucket set and does not require the fused split8 S3
+artifacts.
+
+API notes for this fork:
+
+- `GET /voices` returns the available configured voices.
+- There is no `POST /voices` upload/registration endpoint.
+- `POST /audio/speech` accepts JSON and returns raw WAV.
+- `POST /v1/tts/file` accepts multipart form data with an optional
+  `audio_prompt` file for per-request voice prompting.
+
+Example per-request voice sample:
+
+```shell
+curl -s -m 300 -X POST http://<machine-ip>:8003/v1/tts/file \
+  -F 'text=This is a Vulkan test with a per-request voice sample.' \
+  -F 'audio_prompt=@/path/to/voice.wav' \
+  -o bc250_vulkan_voice_test.wav
+```
 
 Detailed BC-250 notes:
 
