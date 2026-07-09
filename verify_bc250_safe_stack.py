@@ -148,6 +148,7 @@ def source_syntax_checks() -> list[dict[str, Any]]:
         "run_api.sh",
         "run_api_cpu_fast.sh",
         "run_api_rocm.sh",
+        "run_api_vulkan_fast_fused_guarded.sh",
         "run_api_vulkan_fast_fused.sh",
         "run_api_vulkan_hybrid.sh",
         "run_router.sh",

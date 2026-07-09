@@ -124,8 +124,7 @@ For the measured target-crossing fast profile, use the separate fused fast
 launcher:
 
 ```bash
-./preflight_vulkan_worker.py --profile fast-fused-target --worker-port 8003
-PORT=8003 ./run_api_vulkan_fast_fused.sh
+PORT=8003 ./run_api_vulkan_fast_fused_guarded.sh
 ```
 
 That script keeps watermark off and opts into the measured fast recipe:
@@ -164,8 +163,8 @@ For fused fast-profile workers on multiple BC-250s:
 ./preflight_vulkan_worker.py --profile fast-fused-target --device-selector 0000:01:00.0 --worker-port 8003
 ./preflight_vulkan_worker.py --profile fast-fused-target --device-selector 0000:02:00.0 --worker-port 8004
 
-PORT=8003 CHATTERBOX_VK_DEVICE_SELECT=0000:01:00.0 ./run_api_vulkan_fast_fused.sh
-PORT=8004 CHATTERBOX_VK_DEVICE_SELECT=0000:02:00.0 ./run_api_vulkan_fast_fused.sh
+PORT=8003 CHATTERBOX_VK_DEVICE_SELECT=0000:01:00.0 ./run_api_vulkan_fast_fused_guarded.sh
+PORT=8004 CHATTERBOX_VK_DEVICE_SELECT=0000:02:00.0 ./run_api_vulkan_fast_fused_guarded.sh
 ```
 
 The router exposes the same client-facing endpoints used by the benchmark:

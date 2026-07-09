@@ -50,10 +50,11 @@ Use this only after the non-generating verifier passes:
 ```bash
 ./verify_bc250_safe_stack.py --require-t3-validation-artifact
 ./preflight_vulkan_worker.py --profile fast-fused-target --worker-port 8003
-PORT=8003 ./run_api_vulkan_fast_fused.sh
+PORT=8003 ./run_api_vulkan_fast_fused_guarded.sh
 ```
 
-The fast-fused launcher defaults:
+The guarded launcher runs the non-generating verifier and preflight before it
+execs the fast-fused launcher. The fast-fused launcher defaults:
 
 - `CHATTERBOX_APPLY_WATERMARK=0`
 - `CHATTERBOX_S3_TIMESTEPS=1`

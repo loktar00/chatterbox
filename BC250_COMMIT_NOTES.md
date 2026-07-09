@@ -71,19 +71,18 @@ is active, experimental, rejected, or worth trying next.
 The committed static version is `BC250_RUNTIME_MATRIX.md`.
 The committed generated-artifact inventory is `BC250_ARTIFACT_MANIFEST.md`.
 
-Use the preflight before starting a Vulkan worker:
+Use the guarded launcher before starting a fast-fused Vulkan worker:
 
 ```bash
-./preflight_vulkan_worker.py --profile fast-fused-target --worker-port 8003
-PORT=8003 ./run_api_vulkan_fast_fused.sh
+PORT=8003 ./run_api_vulkan_fast_fused_guarded.sh
 ```
 
 For a multi-BC-250 setup, bind each worker with `CHATTERBOX_VK_DEVICE_SELECT`
 and place the router in front of the workers:
 
 ```bash
-PORT=8003 CHATTERBOX_VK_DEVICE_SELECT=0000:01:00.0 ./run_api_vulkan_fast_fused.sh
-PORT=8004 CHATTERBOX_VK_DEVICE_SELECT=0000:02:00.0 ./run_api_vulkan_fast_fused.sh
+PORT=8003 CHATTERBOX_VK_DEVICE_SELECT=0000:01:00.0 ./run_api_vulkan_fast_fused_guarded.sh
+PORT=8004 CHATTERBOX_VK_DEVICE_SELECT=0000:02:00.0 ./run_api_vulkan_fast_fused_guarded.sh
 CHATTERBOX_ROUTER_BACKENDS=http://127.0.0.1:8003,http://127.0.0.1:8004 ./run_router.sh
 ```
 
