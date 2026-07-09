@@ -1,10 +1,12 @@
 import base64
 import logging
 import os
+import subprocess
 import tempfile
 import threading
 import time
 from io import BytesIO
+from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
@@ -20,7 +22,37 @@ from chatterbox.tts_turbo import ChatterboxTurboTTS, punc_norm
 
 logger = logging.getLogger(__name__)
 
+ROOT = Path(__file__).resolve().parent
 MAX_INPUT_CHARS = int(os.getenv("CHATTERBOX_MAX_INPUT_CHARS", "3000"))
+
+
+def git_text(args: list[str], timeout: float = 2.0) -> str | None:
+    try:
+        proc = subprocess.run(
+            ["git", *args],
+            cwd=ROOT,
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+    except Exception:
+        return None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip()
+
+
+def source_metadata() -> dict[str, Any]:
+    dirty_text = git_text(["status", "--short", "--untracked-files=no"])
+    return {
+        "branch": os.getenv("CHATTERBOX_SOURCE_BRANCH") or git_text(["rev-parse", "--abbrev-ref", "HEAD"]),
+        "commit": os.getenv("CHATTERBOX_SOURCE_COMMIT") or git_text(["rev-parse", "--short", "HEAD"]),
+        "dirty": bool(dirty_text) if dirty_text is not None else None,
+    }
+
+
+API_SOURCE = source_metadata()
 
 
 def pick_device() -> str:
@@ -882,6 +914,9 @@ def health():
         "torch_threads": torch.get_num_threads(),
         "torch_interop_threads": torch.get_num_interop_threads(),
         "max_input_chars": MAX_INPUT_CHARS,
+        "source_branch": API_SOURCE.get("branch"),
+        "source_commit": API_SOURCE.get("commit"),
+        "source_dirty": API_SOURCE.get("dirty"),
         "model_loaded": MODEL is not None,
         "experimental_vulkan_hift": EXPERIMENTAL_VULKAN_HIFT,
         "vulkan_hift_loaded": VULKAN_HIFT is not None,

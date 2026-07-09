@@ -85,6 +85,48 @@ def diskinfo() -> dict[str, float]:
     return {"total_gb": gb(usage.total), "used_gb": gb(usage.used), "free_gb": gb(usage.free)}
 
 
+def repo_snapshot() -> dict[str, Any]:
+    branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    commit = run(["git", "rev-parse", "--short", "HEAD"])
+    status = run(["git", "status", "--short", "--untracked-files=no"])
+    dirty_text = status["stdout"].strip() if status["returncode"] == 0 else None
+    return {
+        "branch": branch["stdout"].strip() if branch["returncode"] == 0 else None,
+        "commit": commit["stdout"].strip() if commit["returncode"] == 0 else None,
+        "dirty": bool(dirty_text) if dirty_text is not None else None,
+        "status": dirty_text,
+    }
+
+
+def live_api_source(repo: dict[str, Any], health: dict[str, Any]) -> dict[str, Any]:
+    body = health.get("8000", {}).get("body", {})
+    live_commit = body.get("source_commit")
+    repo_commit = repo.get("commit")
+    if live_commit is None:
+        return {
+            "available": False,
+            "matches_head": None,
+            "repo_commit": repo_commit,
+            "live_commit": None,
+            "reason": "Live API does not report source metadata; restart safe CPU API intentionally to expose it.",
+        }
+    matches = bool(
+        repo_commit
+        and live_commit
+        and (str(repo_commit).startswith(str(live_commit)) or str(live_commit).startswith(str(repo_commit)))
+    )
+    return {
+        "available": True,
+        "matches_head": matches,
+        "repo_branch": repo.get("branch"),
+        "repo_commit": repo_commit,
+        "repo_dirty": repo.get("dirty"),
+        "live_branch": body.get("source_branch"),
+        "live_commit": live_commit,
+        "live_dirty": body.get("source_dirty"),
+    }
+
+
 def gpu_snapshot() -> dict[str, Any]:
     dri = Path("/dev/dri")
     nodes = sorted(path.name for path in dri.iterdir()) if dri.exists() else []
@@ -204,15 +246,19 @@ def main() -> int:
     args = parser.parse_args()
 
     benchmarks = [benchmark_summary(path) for path in BENCHMARKS]
+    repo = repo_snapshot()
+    health = {
+        str(port): http_json(f"http://127.0.0.1:{port}/health")
+        for port in PORTS
+        if port != 4123
+    }
     snapshot = {
         "timestamp_utc": dt.datetime.now(dt.UTC).isoformat(),
         "note": "No audio generation is performed by this script.",
+        "repo": repo,
         "ports": port_snapshot(),
-        "health": {
-            str(port): http_json(f"http://127.0.0.1:{port}/health")
-            for port in PORTS
-            if port != 4123
-        },
+        "health": health,
+        "live_api_source": live_api_source(repo, health),
         "resources": {"disk_root": diskinfo(), "memory": meminfo()},
         "gpu": gpu_snapshot(),
         "benchmarks": benchmarks,

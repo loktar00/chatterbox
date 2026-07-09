@@ -58,8 +58,12 @@ gate:
 It verifies syntax, ignored helper library linkage, ROCm/HIP guard scripts, safe
 CPU API health, fast-fused preflight, saved target-crossing benchmark metadata,
 the compact runtime matrix, the artifact manifest summary, the 3,000-character
-API request contract, and the latest T3 native fast token-buffer validation
-artifact.
+API request contract, live safe-API source metadata, and the latest T3 native
+fast token-buffer validation artifact.
+
+If the safe CPU API predates the source-metadata health fields, the gate reports
+a warning instead of stopping work. Restart the CPU API intentionally when you
+want live benchmark numbers to reflect the newest source.
 
 For a short exportability/runtime decision summary, run:
 

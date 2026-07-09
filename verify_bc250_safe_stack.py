@@ -234,9 +234,18 @@ def status_checks(status: dict[str, Any]) -> list[dict[str, Any]]:
     ports = status.get("ports", {}).get("listeners", [])
     performance = status.get("performance_target", {})
     resources = status.get("resources", {})
+    live_source = status.get("live_api_source", {})
     return [
         check("safe_api_alive", bool(status.get("health", {}).get("8000", {}).get("ok")), status.get("health", {}).get("8000")),
         check("safe_api_cpu_device", body.get("device") == "cpu", {"device": body.get("device")}),
+        check(
+            "live_safe_api_source_current",
+            live_source.get("available") is True
+            and live_source.get("matches_head") is True
+            and live_source.get("live_dirty") is False,
+            live_source,
+            severity="warning",
+        ),
         check(
             "only_safe_cpu_port_listening",
             all(":8000 " in line or ":8000\t" in line for line in ports) and bool(ports),
