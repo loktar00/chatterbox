@@ -34,6 +34,20 @@ class ReviewItem:
     notes: str
 
 
+def benchmark_json_for_wav(path: Path) -> Path:
+    name = path.name
+    for suffix in ("_chunk270_req0_2026-07-08.wav", "_chunk270_req1_2026-07-08.wav"):
+        if name.endswith(suffix):
+            return path.with_name(name.removesuffix(suffix) + "_2026-07-08.json")
+    return path.with_suffix(".json")
+
+
+def request_index_for_wav(path: Path) -> int:
+    if "_req1_" in path.name:
+        return 1
+    return 0
+
+
 REVIEW_ITEMS = [
     ReviewItem(
         key="fast_fused_req1",
@@ -119,6 +133,56 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
+def s3_call_summary(calls: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(calls, dict):
+        return {"available": False}
+    return {
+        "available": True,
+        "total": calls.get("total"),
+        "vulkan": calls.get("vulkan"),
+        "fallback_cpu": calls.get("fallback_cpu"),
+    }
+
+
+def provenance_for_wav(path: Path) -> dict[str, Any]:
+    benchmark_json = benchmark_json_for_wav(path)
+    data = load_json(benchmark_json)
+    requests = data.get("requests") if isinstance(data.get("requests"), list) else []
+    index = request_index_for_wav(path)
+    request = requests[index] if index < len(requests) else {}
+    last_request = (
+        request.get("debug", {}).get("body", {}).get("last_request", {})
+        if isinstance(request, dict)
+        else {}
+    )
+    env = data.get("env_overrides", {}) if isinstance(data.get("env_overrides"), dict) else {}
+    return {
+        "benchmark_json": benchmark_json.as_posix(),
+        "benchmark_json_exists": benchmark_json.exists(),
+        "artifact_label": data.get("artifact_label"),
+        "request_index": index,
+        "generation_path": last_request.get("generation_path"),
+        "experimental_vulkan_t3": last_request.get("experimental_vulkan_t3"),
+        "experimental_vulkan_s3": last_request.get("experimental_vulkan_s3"),
+        "experimental_vulkan_hift": last_request.get("experimental_vulkan_hift"),
+        "env_overrides": env,
+        "s3_encoder_calls": s3_call_summary(last_request.get("s3_encoder_calls")),
+        "s3_estimator_calls": s3_call_summary(last_request.get("s3_estimator_calls")),
+        "vulkan_heavy_path": bool(
+            last_request.get("experimental_vulkan_t3")
+            and last_request.get("experimental_vulkan_s3")
+            and last_request.get("experimental_vulkan_hift")
+        ),
+        "s3_debug_fallback_cpu_zero": (
+            s3_call_summary(last_request.get("s3_encoder_calls")).get("fallback_cpu") == 0
+            and s3_call_summary(last_request.get("s3_estimator_calls")).get("fallback_cpu") == 0
+        )
+        if isinstance(last_request.get("s3_encoder_calls"), dict)
+        and isinstance(last_request.get("s3_estimator_calls"), dict)
+        else None,
+    }
+
+
 def short_metric(report: dict[str, Any]) -> dict[str, Any]:
     audio = report.get("audio", {})
     comparison = report.get("comparison_to_reference", {})
@@ -138,7 +202,15 @@ def build_manifest() -> dict[str, Any]:
     items = []
     for item in REVIEW_ITEMS:
         info = wav_info(item.path)
-        info.update({"key": item.key, "label": item.label, "role": item.role, "notes": item.notes})
+        info.update(
+            {
+                "key": item.key,
+                "label": item.label,
+                "role": item.role,
+                "notes": item.notes,
+                "provenance": provenance_for_wav(item.path),
+            }
+        )
         items.append(info)
     reports = [load_json(path) for path in SANITY_REPORTS]
     return {
@@ -165,15 +237,31 @@ def write_html(manifest: dict[str, Any], output: Path) -> None:
     rows = []
     for item in manifest["items"]:
         path = Path(item["path"])
+        provenance = item.get("provenance", {})
         rel_path = rel_to(path, output) if item.get("exists") else ""
         duration = item.get("duration_seconds")
         duration_text = f"{duration:.3f}s" if isinstance(duration, (int, float)) else "missing"
+        encoder = provenance.get("s3_encoder_calls", {})
+        estimator = provenance.get("s3_estimator_calls", {})
+        provenance_rows = [
+            ("Artifact", provenance.get("artifact_label")),
+            ("Generation path", provenance.get("generation_path")),
+            ("Vulkan T3/S3/HiFT", f"{provenance.get('experimental_vulkan_t3')}/{provenance.get('experimental_vulkan_s3')}/{provenance.get('experimental_vulkan_hift')}"),
+            ("S3 encoder", f"vulkan={encoder.get('vulkan')} fallback_cpu={encoder.get('fallback_cpu')}" if encoder.get("available") else "not recorded in this artifact"),
+            ("S3 estimator", f"vulkan={estimator.get('vulkan')} fallback_cpu={estimator.get('fallback_cpu')}" if estimator.get("available") else "not recorded in this artifact"),
+            ("Benchmark JSON", provenance.get("benchmark_json")),
+        ]
+        provenance_html = "".join(
+            f"<dt>{html.escape(label)}</dt><dd>{html.escape(str(value))}</dd>"
+            for label, value in provenance_rows
+        )
         rows.append(
             "<section>"
             f"<h2>{html.escape(item['role'])}: {html.escape(item['label'])}</h2>"
             f"<p>{html.escape(item['notes'])}</p>"
             f"<p><code>{html.escape(path.as_posix())}</code></p>"
             f"<p>Duration: <strong>{html.escape(duration_text)}</strong></p>"
+            f"<dl>{provenance_html}</dl>"
             + (
                 f'<audio controls preload="metadata" src="{html.escape(rel_path)}"></audio>'
                 if item.get("exists")
@@ -203,6 +291,8 @@ def write_html(manifest: dict[str, Any], output: Path) -> None:
                 "<style>",
                 "body{font-family:system-ui,sans-serif;max-width:960px;margin:32px auto;padding:0 16px;line-height:1.4}",
                 "section{border-top:1px solid #ccc;padding:20px 0}",
+                "dt{font-weight:700;margin-top:6px}",
+                "dd{margin-left:0}",
                 "audio{width:100%;display:block;margin-top:8px}",
                 "code{word-break:break-all}",
                 "</style>",
