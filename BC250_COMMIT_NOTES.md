@@ -11,6 +11,17 @@ ROCm/HIP compute, which proved unsafe on this host.
 - BC-250 default-quality Vulkan/no-watermark path: about `8.145s`
 - BC-250 fast-fused/no-watermark path: `6.899565461000748s`
 
+The T3 native fast token-buffer path is validated by:
+
+```bash
+./validate_t3_native_fast_token_buffer.py
+```
+
+Latest local T3-only validation: two hello requests, both `48` tokens, token
+equality preserved, `native_sampler=true`, `native_fast_token_buffer=true`, and
+`step_logits_to_torch_seconds=0.0`. This check does not generate audio, start an
+API worker, or run ROCm/HIP.
+
 The fast-fused path meets the 2x target, but it is an opt-in
 listen-before-default profile. It uses:
 
