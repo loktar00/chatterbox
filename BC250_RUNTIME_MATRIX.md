@@ -73,6 +73,9 @@ sanity and is effectively identical to the prior fast path. It differs from the
 default-quality no-watermark output, so it remains listen-before-default until
 the generated audio has been reviewed by ear.
 
+Use `./prepare_bc250_audio_review.py` to build an ignored local HTML review page
+from the saved WAV artifacts.
+
 ## Guardrails
 
 - Do not use ROCm/HIP on this BC-250 host. The ROCm scripts require

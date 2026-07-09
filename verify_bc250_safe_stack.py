@@ -137,6 +137,7 @@ def source_syntax_checks() -> list[dict[str, Any]]:
         "bundle_bc250_artifacts.py",
         "chatterbox_status.py",
         "preflight_vulkan_worker.py",
+        "prepare_bc250_audio_review.py",
         "summarize_bc250_artifacts.py",
         "summarize_bc250_runtime_matrix.py",
         "verify_api_contract.py",

@@ -44,6 +44,18 @@ length.
 - This fresh container cannot push to GitHub until credentials, `gh`, or an SSH
   key are added.
 
+## Listen-Test Package
+
+Prepare a local review page from existing WAV artifacts:
+
+```bash
+./prepare_bc250_audio_review.py
+```
+
+Open `exports/audio_review/index.html` in a browser or copy the referenced WAVs
+to a listening machine. The script only inspects existing artifacts; it does not
+load Chatterbox, generate audio, start workers, or touch ROCm/HIP.
+
 ## Safe Commands
 
 Run the full non-generating gate:
