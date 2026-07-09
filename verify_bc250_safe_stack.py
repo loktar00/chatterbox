@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -160,14 +161,23 @@ def process_safety_checks() -> list[dict[str, Any]]:
             continue
         rows.append({"pid": parts[0], "ppid": parts[1], "cmd": parts[2]})
 
+    by_pid = {row["pid"]: row for row in rows}
+    own_chain = {str(os.getpid())}
+    cursor = str(os.getppid())
+    while cursor and cursor not in own_chain:
+        own_chain.add(cursor)
+        cursor = by_pid.get(cursor, {}).get("ppid")
+
+    visible_rows = [row for row in rows if row["pid"] not in own_chain]
+
     unsafe_processes = [
         row
-        for row in rows
+        for row in visible_rows
         if any(token in row["cmd"] for token in UNSAFE_PROCESS_TOKENS)
     ]
     stray_workers = [
         row
-        for row in rows
+        for row in visible_rows
         if any(token in row["cmd"] for token in STRAY_WORKER_TOKENS)
         or ("uvicorn chatterbox_api:app" in row["cmd"] and "--port 8000" not in row["cmd"])
         or "chatterbox_router:app" in row["cmd"]
