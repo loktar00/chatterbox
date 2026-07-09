@@ -68,6 +68,7 @@ For a short exportability/runtime decision summary, run:
 
 It writes ignored JSON/Markdown under `exports/benchmarks/` and summarizes what
 is active, experimental, rejected, or worth trying next.
+The committed static version is `BC250_RUNTIME_MATRIX.md`.
 
 Use the preflight before starting a Vulkan worker:
 
