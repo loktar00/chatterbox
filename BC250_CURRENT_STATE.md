@@ -82,6 +82,9 @@ Print a concise safe-state summary:
 ./bc250_safe_status.py
 ```
 
+That summary includes the safe CPU API source state, review-page URL, listened
+ports, current patch/bundle backup paths, and the saved best-speed comparison.
+
 Print the saved speed ledger:
 
 ```bash

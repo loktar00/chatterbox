@@ -12,6 +12,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from summarize_bc250_speed_ledger import build_report as build_speed_ledger
+
 
 ROOT = Path(__file__).resolve().parent
 PATCH_PREFIX = "/root/chatterbox-bc250-vulkan-accel"
@@ -109,6 +111,19 @@ def backup_artifacts(commit: str | None) -> dict[str, Any]:
     }
 
 
+def speed_ledger() -> dict[str, Any]:
+    try:
+        report = build_speed_ledger()
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "summary": {}}
+    return {
+        "ok": report.get("ok"),
+        "errors": report.get("errors", []),
+        "summary": report.get("summary", {}),
+        "decision": report.get("decision"),
+    }
+
+
 def build_report(allow_dirty: bool) -> dict[str, Any]:
     git = git_info()
     ip = host_ip()
@@ -124,12 +139,23 @@ def build_report(allow_dirty: bool) -> dict[str, Any]:
             "status": http_status(f"http://127.0.0.1:8020{review_path}"),
         },
         "listeners": listeners(),
+        "speed_ledger": speed_ledger(),
         "backups": backup_artifacts(git.get("commit")),
     }
 
 
+def fmt_seconds(value: Any) -> str:
+    return "n/a" if not isinstance(value, (int, float)) else f"{value:.3f}s"
+
+
+def fmt_ratio(value: Any) -> str:
+    return "n/a" if not isinstance(value, (int, float)) else f"{value:.3f}x"
+
+
 def print_text(report: dict[str, Any]) -> None:
     health = report["health_8000"].get("body", {}) if report["health_8000"].get("ok") else {}
+    speed = report.get("speed_ledger", {})
+    speed_summary = speed.get("summary") or {}
     print("BC-250 safe status")
     print(f"branch={report['git'].get('branch')} commit={report['git'].get('commit')} dirty={report['git'].get('dirty')}")
     print(
@@ -144,6 +170,15 @@ def print_text(report: dict[str, Any]) -> None:
         f"device={health.get('device')} "
         f"source={health.get('source_commit')} "
         f"dirty={health.get('source_dirty')}"
+    )
+    print(
+        "speed="
+        f"ok={speed.get('ok')} "
+        f"best={fmt_seconds(speed_summary.get('best_bc250_wall_seconds'))} "
+        f"target={fmt_seconds(speed_summary.get('target_2x_5090_seconds'))} "
+        f"ratio5090={fmt_ratio(speed_summary.get('best_bc250_ratio_to_5090'))} "
+        f"speedup_cpu={fmt_ratio(speed_summary.get('best_bc250_speedup_vs_original_cpu'))} "
+        f"target_met={speed_summary.get('target_met_by_best_wall')}"
     )
     print(f"audio_review={report['audio_review'].get('remote_url')} status={report['audio_review']['status'].get('status')}")
     print("listeners:")
