@@ -48,6 +48,17 @@ The script expects a Vulkan-enabled llama.cpp build at
 `/root/llama.cpp/build-vulkan`. Override `LLAMA_CPP_DIR`, `LLAMA_CPP_BUILD`,
 `GGML_INCLUDE_DIR`, or `GGML_LIB_DIR` if your layout differs.
 
+Before starting a worker or pushing branch updates, run the non-generating stack
+gate:
+
+```bash
+./verify_bc250_safe_stack.py --require-t3-validation-artifact
+```
+
+It verifies syntax, ignored helper library linkage, ROCm/HIP guard scripts, safe
+CPU API health, fast-fused preflight, saved target-crossing benchmark metadata,
+and the latest T3 native fast token-buffer validation artifact.
+
 Use the preflight before starting a Vulkan worker:
 
 ```bash
