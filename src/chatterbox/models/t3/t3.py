@@ -1,6 +1,8 @@
 # Copyright (c) 2025 Resemble AI
 # MIT License
 import logging
+import os
+import sys
 from typing import Union, Optional, List
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,15 @@ from ..utils import AttrDict
 
 
 logger = logging.getLogger(__name__)
+
+
+def _show_progress() -> bool:
+    value = os.getenv("CHATTERBOX_PROGRESS", "auto").lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return sys.stderr.isatty()
 
 
 def _ensure_BOT_EOT(text_tokens: Tensor, hp):
@@ -335,7 +346,7 @@ class T3(nn.Module):
         past = output.past_key_values
 
         # ---- Generation Loop using kv_cache ----
-        for i in tqdm(range(max_new_tokens), desc="Sampling", dynamic_ncols=True):
+        for i in tqdm(range(max_new_tokens), desc="Sampling", dynamic_ncols=True, disable=not _show_progress()):
             logits_step = output.logits[:, -1, :]
             # CFG combine  → (1, V)
             cond   = logits_step[0:1, :]
@@ -412,8 +423,6 @@ class T3(nn.Module):
             cfg_weight=0.0,
         )
 
-        generated_speech_tokens = []
-
         llm_outputs = self.tfmr(
             inputs_embeds=embeds,
             use_cache=True
@@ -429,10 +438,17 @@ class T3(nn.Module):
         probs = F.softmax(processed_logits, dim=-1)
         next_speech_token = torch.multinomial(probs, num_samples=1)
 
-        generated_speech_tokens.append(next_speech_token)
+        generated_speech_tokens = torch.empty(
+            next_speech_token.size(0),
+            max_gen_len + 1,
+            dtype=next_speech_token.dtype,
+            device=next_speech_token.device,
+        )
+        generated_speech_tokens[:, 0:1] = next_speech_token
+        generated_count = 1
         current_speech_token = next_speech_token
 
-        for _ in tqdm(range(max_gen_len)):
+        for _ in tqdm(range(max_gen_len), disable=not _show_progress()):
             current_speech_embed = self.speech_emb(current_speech_token)
 
             llm_outputs = self.tfmr(
@@ -445,7 +461,7 @@ class T3(nn.Module):
             past_key_values = llm_outputs.past_key_values
             speech_logits = self.speech_head(hidden_states)
 
-            input_ids = torch.cat(generated_speech_tokens, dim=1)
+            input_ids = generated_speech_tokens[:, :generated_count]
             processed_logits = logits_processors(input_ids, speech_logits[:, -1, :])
             if torch.all(processed_logits == -float("inf")):
                 print("Warning: All logits are -inf")
@@ -454,12 +470,13 @@ class T3(nn.Module):
             probs = F.softmax(processed_logits, dim=-1)
             next_speech_token = torch.multinomial(probs, num_samples=1)
 
-            generated_speech_tokens.append(next_speech_token)
+            generated_speech_tokens[:, generated_count : generated_count + 1] = next_speech_token
+            generated_count += 1
             current_speech_token = next_speech_token
             if torch.all(next_speech_token == self.hp.stop_speech_token):
                 break
 
-        all_tokens = torch.cat(generated_speech_tokens, dim=1)
+        all_tokens = generated_speech_tokens[:, :generated_count]
 
         # Remove EOS token if present
         if all_tokens.size(1) > 0 and all_tokens[0, -1] == self.hp.stop_speech_token:

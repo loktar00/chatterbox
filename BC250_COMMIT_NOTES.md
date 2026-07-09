@@ -1,0 +1,68 @@
+# BC-250 Vulkan Chatterbox Commit Notes
+
+This fork work is container-oriented and assumes the project lives at
+`/root/chatterbox`. The goal was to make Chatterbox usable on a BC-250 without
+ROCm/HIP compute, which proved unsafe on this host.
+
+## Current Performance Baseline
+
+- RTX 5090 reference from the external server: `3.495s`
+- 2x target: `6.990s`
+- BC-250 default-quality Vulkan/no-watermark path: about `8.145s`
+- BC-250 fast-fused/no-watermark path: `6.899565461000748s`
+
+The fast-fused path meets the 2x target, but it is an opt-in
+listen-before-default profile. It uses:
+
+- `CHATTERBOX_APPLY_WATERMARK=0`
+- `CHATTERBOX_S3_TIMESTEPS=1`
+- `CHATTERBOX_T3_NATIVE_SAMPLER=1`
+- `CHATTERBOX_ALLOW_VULKAN_S3_PADDING=1`
+- `CHATTERBOX_REQUIRE_VULKAN_S3=1`
+- `CHATTERBOX_T3_MAX_GEN_LEN=376`
+- `CHATTERBOX_DEFAULT_SEED=20260708`
+- `CHATTERBOX_VULKAN_S3_FUSED_MIDBLOCKS=1`
+- `CHATTERBOX_VULKAN_S3_FUSED_VARIANT=split8`
+
+## Safe Startup
+
+Use the preflight before starting a Vulkan worker:
+
+```bash
+./preflight_vulkan_worker.py --profile fast-fused-target --worker-port 8003
+PORT=8003 ./run_api_vulkan_fast_fused.sh
+```
+
+For a multi-BC-250 setup, bind each worker with `CHATTERBOX_VK_DEVICE_SELECT`
+and place the router in front of the workers:
+
+```bash
+PORT=8003 CHATTERBOX_VK_DEVICE_SELECT=0000:01:00.0 ./run_api_vulkan_fast_fused.sh
+PORT=8004 CHATTERBOX_VK_DEVICE_SELECT=0000:02:00.0 ./run_api_vulkan_fast_fused.sh
+CHATTERBOX_ROUTER_BACKENDS=http://127.0.0.1:8003,http://127.0.0.1:8004 ./run_router.sh
+```
+
+## Safety
+
+ROCm/HIP is intentionally not the supported path for this host. The ROCm API
+and HIP verification scripts refuse to run unless `ALLOW_UNSAFE_BC250_ROCM=1`
+is explicitly set.
+
+The stable fallback API remains CPU-only:
+
+```bash
+./run_api.sh
+```
+
+## Not Committed
+
+Generated artifacts are ignored and should be rebuilt or copied locally:
+
+- `exports/`
+- generated `.vmfb`, `.f32`, `.npy`, `.onnx`, and `.mlir` files
+- compiled helper binaries
+- local virtual environments
+- generated WAV files
+
+This keeps the fork small while preserving the source, scripts, and docs needed
+to reproduce the current BC-250 Vulkan path.

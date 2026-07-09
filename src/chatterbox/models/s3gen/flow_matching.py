@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import sys
 import threading
 import torch
 import torch.nn.functional as F
@@ -21,6 +23,15 @@ from tqdm import tqdm
 
 def cast_all(*args, dtype):
     return [a if (not a.dtype.is_floating_point) or a.dtype == dtype else a.to(dtype) for a in args]
+
+
+def _show_progress() -> bool:
+    value = os.getenv("CHATTERBOX_PROGRESS", "auto").lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return sys.stderr.isatty()
 
 
 class ConditionalCFM(BASECFM):
@@ -236,8 +247,13 @@ class CausalConditionalCFM(ConditionalCFM):
         in_dtype = x.dtype
         x, t_span, mu, mask, spks, cond = cast_all(x, t_span, mu, mask, spks, cond, dtype=self.estimator.dtype)
 
-        print("S3 Token -> Mel Inference...")
-        for t, r in tqdm(zip(t_span[..., :-1], t_span[..., 1:]), total=t_span.shape[-1] - 1):
+        if _show_progress():
+            print("S3 Token -> Mel Inference...")
+        for t, r in tqdm(
+            zip(t_span[..., :-1], t_span[..., 1:]),
+            total=t_span.shape[-1] - 1,
+            disable=not _show_progress(),
+        ):
             t, r = t[None], r[None]
             dxdt = self.estimator.forward(x, mask=mask, mu=mu, t=t, spks=spks, cond=cond, r=r)
             dt = r - t

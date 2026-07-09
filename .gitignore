@@ -46,3 +46,26 @@ checkpoints/
 
 # Ignore generated sample .wav files
 **/*.wav
+
+# Local environments and generated accelerator artifacts
+.venv/
+.venv-*/
+exports/
+*.vmfb
+*.f32
+*.npy
+*.npz
+*.onnx
+*.mlir
+core.*
+
+# Locally built benchmark/helper binaries. Keep the corresponding .cpp sources.
+bench_ggml_cache_set_rows
+bench_ggml_t3_vulkan
+bench_s3_layernorm_ggml
+bench_t3_block0_ggml_correctness
+bench_t3_block0_ggml_correctness_p935
+bench_t3_full_stack_ggml_correctness_p935
+bench_t3_native_sampler
+bench_t3_real_prompt_multistep_ggml
+bench_t3_resident_cache_ggml
