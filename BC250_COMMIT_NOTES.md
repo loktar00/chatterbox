@@ -70,6 +70,7 @@ It writes ignored JSON/Markdown under `exports/benchmarks/` and summarizes what
 is active, experimental, rejected, or worth trying next.
 The committed static version is `BC250_RUNTIME_MATRIX.md`.
 The committed generated-artifact inventory is `BC250_ARTIFACT_MANIFEST.md`.
+The fork push and artifact handoff checklist is `BC250_FORK_HANDOFF.md`.
 
 To preserve ignored runtime artifacts outside Git, dry-run the bundle plan:
 
