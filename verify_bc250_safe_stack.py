@@ -199,6 +199,7 @@ def source_syntax_checks() -> list[dict[str, Any]]:
         "prepare_bc250_audio_review.py",
         "summarize_bc250_artifacts.py",
         "summarize_bc250_runtime_matrix.py",
+        "summarize_bc250_speed_ledger.py",
         "verify_api_contract.py",
         "validate_t3_native_fast_token_buffer.py",
         "t3_ggml_vulkan_runtime.py",
@@ -252,6 +253,41 @@ def runtime_matrix_summary_check() -> dict[str, Any]:
             "output": output.as_posix(),
             "component_count": len(data.get("components") or []) if data else 0,
             "decision": data.get("decision") if data else None,
+            "stderr": result["stderr"],
+        },
+    )
+
+
+def speed_ledger_summary_check() -> dict[str, Any]:
+    output = Path("/tmp/chatterbox_bc250_speed_ledger_verify.json")
+    result = run(
+        [
+            "./summarize_bc250_speed_ledger.py",
+            "--output",
+            output.as_posix(),
+        ],
+        timeout=15.0,
+    )
+    data = load_json_file(output)
+    ok = (
+        result["returncode"] == 0
+        and data.get("ok") is True
+        and nested(data, "summary", "target_met_by_best_wall") is True
+        and isinstance(nested(data, "summary", "original_cpu_seconds"), (int, float))
+        and isinstance(nested(data, "summary", "best_bc250_wall_seconds"), (int, float))
+        and len(data.get("rows") or []) >= 5
+    )
+    return check(
+        "speed_ledger_summary_builds",
+        ok,
+        {
+            "returncode": result["returncode"],
+            "output": output.as_posix(),
+            "ok": data.get("ok") if data else None,
+            "errors": data.get("errors") if data else None,
+            "original_cpu_seconds": nested(data, "summary", "original_cpu_seconds"),
+            "best_bc250_wall_seconds": nested(data, "summary", "best_bc250_wall_seconds"),
+            "target_met_by_best_wall": nested(data, "summary", "target_met_by_best_wall"),
             "stderr": result["stderr"],
         },
     )
@@ -403,6 +439,7 @@ def main() -> int:
     checks.extend(source_syntax_checks())
     checks.append(artifact_manifest_summary_check())
     checks.append(runtime_matrix_summary_check())
+    checks.append(speed_ledger_summary_check())
     checks.append(audio_review_package_check())
     checks.extend(helper_lib_checks())
     checks.extend(rocm_guard_checks())

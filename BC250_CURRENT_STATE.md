@@ -18,6 +18,7 @@ based on saved benchmark artifacts plus non-generating status checks.
 | --- | --- | ---: |
 | RTX 5090 reference | external comparison | `3.495s` |
 | 2x target | BC-250 goal | `6.990s` |
+| Original BC-250 CPU chunk270 | starting point | `62.809s` |
 | BC-250 fast-fused Vulkan | target-crossing, opt-in | `6.899565461000748s` |
 | BC-250 default-quality Vulkan, no watermark | stable but above target | about `8.145s` |
 | BC-250 CPU fallback, no watermark projection | stable fallback only | about `59.964s` |
@@ -37,8 +38,8 @@ length.
 
 ## Known Warnings
 
-- The currently running CPU API predates source-commit metadata in `/health`.
-  This is expected until the CPU API is intentionally restarted.
+- The safe CPU API reports source-commit metadata in `/health`; restart it after
+  a new commit if `./bc250_safe_status.py` reports source drift.
 - The fast-fused path passed waveform sanity and matches the prior fast path,
   but it still needs human listening before becoming the default.
 - This fresh container cannot push to GitHub until credentials, `gh`, or an SSH
@@ -79,6 +80,12 @@ Print a concise safe-state summary:
 
 ```bash
 ./bc250_safe_status.py
+```
+
+Print the saved speed ledger:
+
+```bash
+./summarize_bc250_speed_ledger.py --pretty
 ```
 
 Dry-run ignored artifact preservation:
