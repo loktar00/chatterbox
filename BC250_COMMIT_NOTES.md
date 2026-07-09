@@ -57,8 +57,9 @@ gate:
 
 It verifies syntax, ignored helper library linkage, ROCm/HIP guard scripts, safe
 CPU API health, fast-fused preflight, saved target-crossing benchmark metadata,
-the compact runtime matrix, the artifact manifest summary, and the latest T3
-native fast token-buffer validation artifact.
+the compact runtime matrix, the artifact manifest summary, the 3,000-character
+API request contract, and the latest T3 native fast token-buffer validation
+artifact.
 
 For a short exportability/runtime decision summary, run:
 

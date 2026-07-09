@@ -20,6 +20,8 @@ from chatterbox.tts_turbo import ChatterboxTurboTTS, punc_norm
 
 logger = logging.getLogger(__name__)
 
+MAX_INPUT_CHARS = int(os.getenv("CHATTERBOX_MAX_INPUT_CHARS", "3000"))
+
 
 def pick_device() -> str:
     requested = os.getenv("CHATTERBOX_DEVICE", "auto").lower()
@@ -188,7 +190,7 @@ def warmup_s3_bucket_keys(spec: str) -> list[int]:
 
 
 class TTSRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=1200)
+    text: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARS)
     audio_prompt_path: Optional[str] = None
     exaggeration: float = 0.0
     cfg_weight: float = 0.0
@@ -879,6 +881,7 @@ def health():
         "cuda_available": torch.cuda.is_available(),
         "torch_threads": torch.get_num_threads(),
         "torch_interop_threads": torch.get_num_interop_threads(),
+        "max_input_chars": MAX_INPUT_CHARS,
         "model_loaded": MODEL is not None,
         "experimental_vulkan_hift": EXPERIMENTAL_VULKAN_HIFT,
         "vulkan_hift_loaded": VULKAN_HIFT is not None,
@@ -948,7 +951,7 @@ def tts_json(req: TTSRequest):
 
 
 class SpeechRequest(BaseModel):
-    input: str = Field(..., min_length=1, max_length=3000)
+    input: str = Field(..., min_length=1, max_length=MAX_INPUT_CHARS)
     voice: str = "default"
     exaggeration: float = 0.0
     cfg_weight: float = 0.0
@@ -988,7 +991,7 @@ def audio_speech(req: SpeechRequest):
 
 @app.post("/v1/tts/file")
 def tts_file(
-    text: str = Form(...),
+    text: str = Form(..., min_length=1, max_length=MAX_INPUT_CHARS),
     audio_prompt: Optional[UploadFile] = File(None),
     temperature: float = Form(0.8),
     min_p: float = Form(0.0),

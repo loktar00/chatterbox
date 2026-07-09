@@ -139,6 +139,7 @@ def source_syntax_checks() -> list[dict[str, Any]]:
         "preflight_vulkan_worker.py",
         "summarize_bc250_artifacts.py",
         "summarize_bc250_runtime_matrix.py",
+        "verify_api_contract.py",
         "validate_t3_native_fast_token_buffer.py",
         "t3_ggml_vulkan_runtime.py",
         "chatterbox_api.py",
@@ -309,6 +310,24 @@ def main() -> int:
     checks.append(runtime_matrix_summary_check())
     checks.extend(helper_lib_checks())
     checks.extend(rocm_guard_checks())
+
+    api_contract_result = json_command(["./verify_api_contract.py"], timeout=30.0)
+    api_contract = api_contract_result.get("json") or {}
+    checks.append(
+        check(
+            "api_contract_command_json",
+            api_contract_result["returncode"] == 0 and bool(api_contract),
+            api_contract_result.get("json_error"),
+        )
+    )
+    if api_contract:
+        checks.append(
+            check(
+                "api_contract_3000_char_limit",
+                api_contract.get("ok") is True and api_contract.get("error_count") == 0,
+                api_contract.get("checks"),
+            )
+        )
 
     status_result = json_command(["./chatterbox_status.py"], timeout=15.0)
     status = status_result.get("json") or {}
