@@ -231,6 +231,31 @@ def artifact_manifest_summary_check() -> dict[str, Any]:
     )
 
 
+def audio_review_package_check() -> dict[str, Any]:
+    result = json_command(["./prepare_bc250_audio_review.py", "--json"], timeout=30.0)
+    data = result.get("json") or {}
+    summary = data.get("summary", {}) if isinstance(data, dict) else {}
+    ok = (
+        result["returncode"] == 0
+        and data.get("ok") is True
+        and summary.get("item_count") == 4
+        and summary.get("missing_count") == 0
+        and summary.get("vulkan_heavy_count") == 4
+        and summary.get("s3_debug_fallback_cpu_zero_count") >= 3
+    )
+    return check(
+        "audio_review_package_builds",
+        ok,
+        {
+            "returncode": result["returncode"],
+            "json_error": result.get("json_error"),
+            "html": data.get("html"),
+            "manifest": data.get("manifest"),
+            "summary": summary,
+        },
+    )
+
+
 def status_checks(status: dict[str, Any]) -> list[dict[str, Any]]:
     body = status.get("health", {}).get("8000", {}).get("body", {})
     ports = status.get("ports", {}).get("listeners", [])
@@ -319,6 +344,7 @@ def main() -> int:
     checks.extend(source_syntax_checks())
     checks.append(artifact_manifest_summary_check())
     checks.append(runtime_matrix_summary_check())
+    checks.append(audio_review_package_check())
     checks.extend(helper_lib_checks())
     checks.extend(rocm_guard_checks())
 

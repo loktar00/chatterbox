@@ -229,6 +229,30 @@ def build_manifest() -> dict[str, Any]:
     }
 
 
+def review_summary(manifest: dict[str, Any]) -> dict[str, Any]:
+    items = manifest.get("items", [])
+    missing = [item for item in items if not item.get("exists")]
+    vulkan_heavy = [
+        item
+        for item in items
+        if item.get("provenance", {}).get("vulkan_heavy_path") is True
+    ]
+    s3_debug_zero = [
+        item
+        for item in items
+        if item.get("provenance", {}).get("s3_debug_fallback_cpu_zero") is True
+    ]
+    return {
+        "item_count": len(items),
+        "missing_count": len(missing),
+        "missing_keys": [item.get("key") for item in missing],
+        "vulkan_heavy_count": len(vulkan_heavy),
+        "vulkan_heavy_keys": [item.get("key") for item in vulkan_heavy],
+        "s3_debug_fallback_cpu_zero_count": len(s3_debug_zero),
+        "s3_debug_fallback_cpu_zero_keys": [item.get("key") for item in s3_debug_zero],
+    }
+
+
 def rel_to(path: Path, base: Path) -> str:
     return os.path.relpath(path.resolve(), base.resolve().parent)
 
@@ -330,14 +354,26 @@ def main() -> int:
     html_path = args.output_dir / "index.html"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     write_html(manifest, html_path)
-    missing = [item for item in manifest["items"] if not item.get("exists")]
+    summary = review_summary(manifest)
     if args.json:
-        print(json.dumps({"ok": not missing, "manifest": manifest_path.as_posix(), "html": html_path.as_posix(), "missing": missing}, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "ok": summary["missing_count"] == 0,
+                    "manifest": manifest_path.as_posix(),
+                    "html": html_path.as_posix(),
+                    "summary": summary,
+                },
+                sort_keys=True,
+            )
+        )
     else:
         print(f"manifest={manifest_path}")
         print(f"html={html_path}")
-        print(f"missing={len(missing)}")
-    return 0 if not missing else 1
+        print(f"missing={summary['missing_count']}")
+        print(f"vulkan_heavy={summary['vulkan_heavy_count']}/{summary['item_count']}")
+        print(f"s3_debug_fallback_cpu_zero={summary['s3_debug_fallback_cpu_zero_count']}/{summary['item_count']}")
+    return 0 if summary["missing_count"] == 0 else 1
 
 
 if __name__ == "__main__":
