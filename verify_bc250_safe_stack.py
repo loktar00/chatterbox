@@ -136,6 +136,7 @@ def source_syntax_checks() -> list[dict[str, Any]]:
     py_files = [
         "chatterbox_status.py",
         "preflight_vulkan_worker.py",
+        "summarize_bc250_artifacts.py",
         "summarize_bc250_runtime_matrix.py",
         "validate_t3_native_fast_token_buffer.py",
         "t3_ggml_vulkan_runtime.py",
@@ -187,6 +188,39 @@ def runtime_matrix_summary_check() -> dict[str, Any]:
             "output": output.as_posix(),
             "component_count": len(data.get("components") or []) if data else 0,
             "decision": data.get("decision") if data else None,
+            "stderr": result["stderr"],
+        },
+    )
+
+
+def artifact_manifest_summary_check() -> dict[str, Any]:
+    output = Path("/tmp/chatterbox_bc250_artifact_manifest_verify.json")
+    result = run(
+        [
+            "./summarize_bc250_artifacts.py",
+            "--output",
+            output.as_posix(),
+        ],
+        timeout=15.0,
+    )
+    data = load_json_file(output)
+    ok = (
+        result["returncode"] == 0
+        and bool(data)
+        and nested(data, "t3_ggml_weights", "exists") is True
+        and nested(data, "s3_iree_vulkan", "vmfb_count") >= 1
+        and nested(data, "hift_iree_vulkan", "vmfb_count") >= 1
+        and all(row.get("ignored") is True for row in data.get("helper_libraries", []))
+    )
+    return check(
+        "artifact_manifest_summary_builds",
+        ok,
+        {
+            "returncode": result["returncode"],
+            "output": output.as_posix(),
+            "t3_size": nested(data, "t3_ggml_weights", "size"),
+            "s3_vmfb_count": nested(data, "s3_iree_vulkan", "vmfb_count"),
+            "hift_vmfb_count": nested(data, "hift_iree_vulkan", "vmfb_count"),
             "stderr": result["stderr"],
         },
     )
@@ -269,6 +303,7 @@ def main() -> int:
         checks.append(check("git_worktree_clean", git_status["stdout"].strip() == "", git_status["stdout"]))
 
     checks.extend(source_syntax_checks())
+    checks.append(artifact_manifest_summary_check())
     checks.append(runtime_matrix_summary_check())
     checks.extend(helper_lib_checks())
     checks.extend(rocm_guard_checks())
