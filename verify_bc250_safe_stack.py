@@ -30,6 +30,25 @@ ROCM_GUARDED_SCRIPTS = (
     ROOT / "verify_rocm_torch.sh",
     ROOT / "verify_native_hip_gfx1013.sh",
 )
+UNSAFE_PROCESS_TOKENS = (
+    ".venv-rocm",
+    "run_api_rocm.sh",
+    "verify_rocm_torch.sh",
+    "verify_native_hip_gfx1013.sh",
+    "install_rocm_env.sh",
+    "hip_gfx1013_smoke",
+    "rocminfo",
+    "rocm-smi",
+)
+STRAY_WORKER_TOKENS = (
+    "run_api_vulkan_fast_fused.sh",
+    "run_api_vulkan_fast_fused_guarded.sh",
+    "run_api_vulkan_hybrid.sh",
+    "run_api_vulkan_worker.sh",
+    "run_api_vulkan_t3.sh",
+    "chatterbox_router.py",
+    "run_router.sh",
+)
 
 
 def run(cmd: list[str], timeout: float = 30.0) -> dict[str, Any]:
@@ -130,6 +149,45 @@ def rocm_guard_checks() -> list[dict[str, Any]]:
             )
         )
     return checks
+
+
+def process_safety_checks() -> list[dict[str, Any]]:
+    result = run(["ps", "-eo", "pid,ppid,cmd", "--no-headers"], timeout=10.0)
+    rows = []
+    for line in result["stdout"].splitlines():
+        parts = line.strip().split(maxsplit=2)
+        if len(parts) < 3:
+            continue
+        rows.append({"pid": parts[0], "ppid": parts[1], "cmd": parts[2]})
+
+    unsafe_processes = [
+        row
+        for row in rows
+        if any(token in row["cmd"] for token in UNSAFE_PROCESS_TOKENS)
+    ]
+    stray_workers = [
+        row
+        for row in rows
+        if any(token in row["cmd"] for token in STRAY_WORKER_TOKENS)
+        or ("uvicorn chatterbox_api:app" in row["cmd"] and "--port 8000" not in row["cmd"])
+        or "chatterbox_router:app" in row["cmd"]
+    ]
+    expected_processes = [
+        row
+        for row in rows
+        if ("uvicorn chatterbox_api:app" in row["cmd"] and "--port 8000" in row["cmd"])
+        or "http.server 8020" in row["cmd"]
+    ]
+    return [
+        check("process_snapshot_available", result["returncode"] == 0, {"stderr": result["stderr"]}),
+        check("no_unsafe_rocm_hip_processes", not unsafe_processes, unsafe_processes),
+        check("no_stray_chatterbox_workers", not stray_workers, stray_workers),
+        check(
+            "expected_safe_processes_visible",
+            any("uvicorn chatterbox_api:app" in row["cmd"] and "--port 8000" in row["cmd"] for row in expected_processes),
+            expected_processes,
+        ),
+    ]
 
 
 def source_syntax_checks() -> list[dict[str, Any]]:
@@ -347,6 +405,7 @@ def main() -> int:
     checks.append(audio_review_package_check())
     checks.extend(helper_lib_checks())
     checks.extend(rocm_guard_checks())
+    checks.extend(process_safety_checks())
 
     api_contract_result = json_command(["./verify_api_contract.py"], timeout=30.0)
     api_contract = api_contract_result.get("json") or {}

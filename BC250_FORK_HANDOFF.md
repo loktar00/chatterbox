@@ -20,6 +20,10 @@ git log --format='%h %an <%ae> | %cn <%ce> | %s' master..HEAD
 ./verify_bc250_safe_stack.py --require-clean-git --require-t3-validation-artifact
 ```
 
+The verifier checks source state, generated-artifact evidence, safe CPU health,
+audio-review provenance, and live processes. It should report zero warnings
+before pushing.
+
 ## Push From This Container
 
 This fresh container does not currently have GitHub credentials, `gh`, or an

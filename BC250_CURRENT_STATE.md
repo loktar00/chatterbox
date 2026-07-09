@@ -72,6 +72,9 @@ Run the full non-generating gate:
 ./verify_bc250_safe_stack.py --require-t3-validation-artifact
 ```
 
+The gate also inspects live processes and fails if ROCm/HIP scripts, Vulkan
+workers, router workers, or non-`8000` Chatterbox API workers are running.
+
 Dry-run ignored artifact preservation:
 
 ```bash
