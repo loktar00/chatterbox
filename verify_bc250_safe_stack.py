@@ -155,6 +155,7 @@ def source_syntax_checks() -> list[dict[str, Any]]:
         "run_api_vulkan_fast_fused.sh",
         "run_api_vulkan_hybrid.sh",
         "run_router.sh",
+        "serve_bc250_audio_review.sh",
         "verify_rocm_torch.sh",
         "verify_native_hip_gfx1013.sh",
     ]

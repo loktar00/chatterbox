@@ -94,3 +94,15 @@ CHATTERBOX_ROUTER_BACKENDS=http://127.0.0.1:8003,http://127.0.0.1:8004 ./run_rou
 ```
 
 Run one request at a time per worker until concurrency is explicitly tested.
+
+## Audio Review Server
+
+To review the saved fast-fused WAVs from another machine:
+
+```bash
+PORT=8020 ./serve_bc250_audio_review.sh
+```
+
+Open `http://<container-ip>:8020/exports/audio_review/index.html`.
+This serves existing WAV artifacts only; it does not start a TTS worker or
+generate audio.

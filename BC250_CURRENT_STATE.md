@@ -56,6 +56,14 @@ Open `exports/audio_review/index.html` in a browser or copy the referenced WAVs
 to a listening machine. The script only inspects existing artifacts; it does not
 load Chatterbox, generate audio, start workers, or touch ROCm/HIP.
 
+To serve the review page for another machine:
+
+```bash
+PORT=8020 ./serve_bc250_audio_review.sh
+```
+
+Then open `http://<container-ip>:8020/exports/audio_review/index.html`.
+
 ## Safe Commands
 
 Run the full non-generating gate:
